@@ -1,0 +1,216 @@
+import java_cup.runtime.*;
+import java.io.*;
+import java.util.*;
+
+
+parser code {:
+	public static void main(String args[]) throws Exception {
+		try{
+			new parser(new Yylex(new InputStreamReader(System.in))).parse();
+		}catch(Exception e){
+			//e.printStackTrace();
+			System.out.println("==== ERREUR ! ====");
+		}
+	}
+:}
+
+
+action code {:
+	HashMap<String, Integer> map_entier = new HashMap<String, Integer>();
+	HashMap<String, String> map_string = new HashMap<String, String>();
+
+	public void affichageE(){
+        	for (Map.Entry mapentry : map_entier.entrySet()) {
+           		System.out.println("\t" + mapentry.getKey() + " :  entier " + mapentry.getValue());
+        	}
+	}
+
+	public void affichageC(){
+        	for (Map.Entry mapentry : map_string.entrySet()) {
+           		System.out.println("\t" + mapentry.getKey() + " :  chaine \"" + mapentry.getValue() + "\"");
+        	}
+	}
+:}
+
+terminal PRINT, PLUS, FOIS, EQUAL, PO, PF, NL;
+terminal Integer NB;
+terminal String STR, VARC, VARE, NF;
+
+non terminal liste;
+non terminal expr, erreur;
+non terminal print, aff_entier;
+non terminal Integer entier;
+non terminal String chaine, aff_chaine;
+
+precedence left EQUAL;
+precedence left PLUS;
+precedence left FOIS;
+precedence left PO, PF;
+
+liste ::= expr
+	| {: System.out.print("Analyse finie. "); System.out.println("Au revoir !"); :}
+	;
+
+print ::= PRINT {: System.out.println(" Variables chaînes :");
+		affichageC();
+		System.out.println(" Variables entières :");
+		affichageE();
+	 :};
+
+expr ::= entier:res 			{: System.out.println(" - : entier " + res); :} NL liste
+	| chaine:val 			{: System.out.println(" - : chaine \"" + val + "\""); :} NL liste
+	| aff_entier NL liste
+	| aff_chaine  NL liste
+	| print NL liste
+	| error:e		{::} NL liste
+	| erreur NL liste
+	;
+
+entier ::= entier:n1 PLUS entier:n2 		{: RESULT = (int)n1 + (int)n2; :}
+	| entier:n1 FOIS entier:n2 		{: RESULT = (int)n1 * (int)n2; :}
+	| PO entier:n1 PF 			{: RESULT = (int)n1; :}
+	| PO entier:n1 PF FOIS entier:n2 	{: RESULT = (int)n1 * (int)n2; :}
+	| PO entier:n1 PF PLUS entier:n2 	{: RESULT = (int)n1 + (int)n2; :}
+	
+	| entier:n1 FOIS VARE:v1		{: 	if( map_entier.containsKey(v1) ){ 
+								RESULT = (int)n1 * map_entier.get(v1);
+							}else{
+								System.out.println("ERREUR : identificateur inconnu");
+								RESULT = 0;
+							}
+						:}
+	| entier:n1 PLUS VARE:v1		{: 	if( map_entier.containsKey(v1) ){
+								RESULT = (int)n1 + map_entier.get(v1);
+							}else{
+								System.out.println("ERREUR : identificateur inconnu");
+								RESULT = 0;
+							}
+						:}
+	| NB:n1 				{: RESULT = (int)n1; :}
+	;
+
+chaine ::= STR:s1 FOIS NB:n1 			{: s1 = s1.substring(1,s1.length()-1); RESULT = ""; for(int i = 0; i < n1; i++){ RESULT += s1;} :}
+	| STR:s1 PLUS STR:s2 			{: RESULT = s1.substring(1,s1.length()-1) + s2.substring(1, s2.length()-1); :}
+	| STR:s1 PLUS NB:n1 FOIS STR:s2 	{: s1 = s1.substring(1,s1.length()-1); s2 = s2.substring(1, s2.length()-1); RESULT = s1; for(int i = 0; i < n1; i++){ RESULT += s2;} :}
+	| STR:s1 PLUS STR:s2 FOIS NB:n1 	{: s1 = s1.substring(1,s1.length()-1); s2 = s2.substring(1, s2.length()-1); RESULT = s1; for(int i = 0; i < n1; i++){ RESULT += s2;} :}
+	| VARC:v1 FOIS NB:n1 			{: RESULT = ""; for(int i = 0; i < n1; i++){ RESULT += map_string.get(v1);} :}
+	| VARC:v1 PLUS VARC:v2 			{: RESULT = map_string.get(v1) + map_string.get(v2); :}
+	| VARC:v1 PLUS VARC:v2 FOIS NB:n1 	{: RESULT = map_string.get(v1); for(int i = 0; i < n1; i++){ RESULT += map_string.get(v2); } :}
+	| VARC:v1 PLUS NB:n1 FOIS VARC:v2 	{: RESULT = map_string.get(v1); for(int i = 0; i < n1; i++){ RESULT += map_string.get(v2); } :}
+	| STR:s1 				{: RESULT = s1.substring(1,s1.length()-1); :}
+	;
+
+
+aff_entier ::= VARE:v1 EQUAL entier:res 		{: map_entier.put(v1, (int)res); System.out.println(v1 + ": entier " + res); :}
+	| VARE:v1 EQUAL VARE:v2 FOIS VARE:v3 		{: 	if( map_entier.containsKey(v2) ){
+									if( map_entier.containsKey(v3) ){
+										map_entier.put(v1, map_entier.get(v2) * map_entier.get(v3));
+										System.out.println(v1 + " : entier " + (map_entier.get(v2) * map_entier.get(v3)));
+									}else{
+										System.out.println("ERREUR : identificateur inconnu");
+									}
+								}
+								else{
+									System.out.println("ERREUR : identificateur inconnu");
+								} 
+
+							:}
+	| VARE:v1 EQUAL VARE:v2 PLUS VARE:v3 		{: 	if( map_entier.containsKey(v2) ){
+									if( map_entier.containsKey(v3) ){
+										map_entier.put(v1, map_entier.get(v2) + map_entier.get(v3));
+										System.out.println(v1 + " : entier " + (map_entier.get(v2) + map_entier.get(v3))); 
+									}else{
+										System.out.println("ERREUR : identificateur inconnu");
+									}
+								}
+								else{
+									System.out.println("ERREUR : identificateur inconnu");
+								}
+							:}
+
+	| VARE:v1 EQUAL VARE:v2 FOIS NB:n1 		{: 	if( map_entier.containsKey(v2) ){
+									map_entier.put(v1, map_entier.get(v2) * n1);
+									System.out.println(v1 + " : entier " + (map_entier.get(v2) * n1));
+								}else{
+									System.out.println("ERREUR : identificateur inconnu");
+								}
+
+							:}
+
+	| VARE:v1 EQUAL NB:n1 FOIS VARE:v2 		{: 	if( map_entier.containsKey(v2) ){
+									map_entier.put(v1, map_entier.get(v2) * n1);
+									System.out.println(v1 + " : entier " + (map_entier.get(v2) * n1)); 
+								}else{
+									System.out.println("ERREUR : identificateur inconnu");
+								}
+
+							:}
+	
+	| VARE:v1 EQUAL VARE:v2 PLUS NB:n1 		{: 	if( map_entier.containsKey(v2) ){
+									map_entier.put(v1, map_entier.get(v2) + n1);
+									System.out.println(v1 + " : entier " + (map_entier.get(v2) + n1));
+								}else{
+									System.out.println("ERREUR : identificateur inconnu");
+								}
+							:}
+	| VARE:v1 EQUAL NB:n1 PLUS VARE:v2 		{: 	if( map_entier.containsKey(v2) ){
+									map_entier.put(v1, map_entier.get(v2) + n1);
+									System.out.println(v1 + " : entier " + (map_entier.get(v2) + n1));
+								}else{
+									System.out.println("ERREUR : identificateur inconnu");
+								}
+							:}
+	;
+
+aff_chaine ::= VARC:v1 EQUAL STR:s 			{: map_string.put(v1, s.substring(1,s.length()-1)); System.out.println(" " + v1 + ": chaine " + s ); :}
+	;
+
+
+erreur ::= VARC EQUAL VARE FOIS NB 		{: System.out.println("ERREUR : type incorrect sur affectation"); :}
+	| VARC EQUAL VARE			{: System.out.println("ERREUR : type incorrect sur affectation"); :}
+	| VARC EQUAL VARE PLUS NB		{: System.out.println("ERREUR : type incorrect sur affectation"); :}
+	| VARC EQUAL entier			{: System.out.println("ERREUR : type incorrect sur affectation"); :}
+
+	| VARE EQUAL chaine			{: System.out.println("ERREUR : type incorrect sur affectation"); :}
+
+	| PO VARC PLUS NB PF FOIS STR 		{: System.out.println("ERREUR : type incorrect sur opérateur +"); :}
+	| PO VARC PLUS NB PF	 		{: System.out.println("ERREUR : type incorrect sur opérateur +"); :}
+	| STR PLUS NB				{: System.out.println("ERREUR : type incorrect sur opérateur +"); :}
+	| STR FOIS STR				{: System.out.println("ERREUR : type incorrect sur opérateur +"); :}
+
+	| entier NF:a entier			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| entier NF:a chaine			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| entier NF:a VARE			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| entier NF:a VARC			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| entier NF:a aff_chaine		{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| entier NF:a aff_entier		{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+
+	| chaine NF:a entier			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| chaine NF:a chaine			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| chaine NF:a VARE			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| chaine NF:a VARC			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| chaine NF:a aff_chaine		{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| chaine NF:a aff_entier		{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+
+	| VARE NF:a chaine			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARE NF:a entier			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARE NF:a VARE			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARE NF:a VARC			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARE NF:a aff_chaine			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARE NF:a aff_entier			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+
+	| VARC NF:a chaine			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARC NF:a entier			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARC NF:a VARE			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARC NF:a VARC			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARC NF:a aff_chaine			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| VARC NF:a aff_entier			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+
+	| NF:a erreur				{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| NF:a entier				{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| NF:a chaine				{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| NF:a VARE				{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| NF:a VARC				{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| NF:a aff_chaine			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	| NF:a aff_entier			{: System.out.println("ERREUR : Symbole " + a + " non compris."); :}
+	;

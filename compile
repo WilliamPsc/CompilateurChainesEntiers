@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# To compile jflex & jcup
+
+if [ $# != 1 ]
+then
+	echo "Usage : $0 fileName"
+else
+	# Supprimer les fichiers de l'ancienne compilation
+	rm -fv *.java;
+	rm -fv *.class;
+	echo "Files Removed"
+
+	# Compilation
+	echo ""
+	jflex $1.lex
+	echo "LEX OK"
+	echo ""
+	cup $1.cup
+	echo "CUP OK"
+	echo ""
+	javac parser.java sym.java Yylex.java
+
+	# Compilation finie
+	echo "Done"
+	clear
+
+	# Exécution du code directement après la compilation
+	#java parser
+fi
